@@ -20,7 +20,7 @@ def get_token():
                        "playlist-read-private",
                        "playlist-modify-public",
                        "playlist-modify-private",
-                       "playlist-read-collaborative", ]) "
+                       "playlist-read-collaborative", ])
 
     oauth = SpotifyOAuth(CLIENT_ID, APP_SECRET, REDIRECT_URI,
                          cache_path=cache_path, scope=scopes)
