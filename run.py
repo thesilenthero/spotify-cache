@@ -3,7 +3,6 @@ import webbrowser
 import os
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from pprint import pprint
 
 CLIENT_ID = os.environ["SPOTIFY_APP_ID"]
 APP_SECRET = os.environ["SPOTIFY_APP_SECRET"]
@@ -76,7 +75,7 @@ def update_playlist():
         else:
             spotify.user_playlist_add_tracks(user["id"], playlist["id"], chunk)
 
-    print(f"Added {len(song_info)} to {playlist["name"]} playlist:\n")
+    print(f"Added {len(song_info)} to {playlist['name']} playlist:\n")
     for song in song_info:
         print(song)
     input("\nPress enter to exit")
