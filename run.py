@@ -57,8 +57,7 @@ def update_playlist():
 
     songs_raw = []
 
-    songs_raw.extend(spotify.current_user_top_tracks(limit=50, time_range="short_term")["items"])
-    songs_raw.extend(spotify.current_user_top_tracks(limit=50, time_range="medium_term")["items"])
+    # songs_raw.extend(spotify.current_user_top_tracks(limit=50, time_range="short_term")["items"])
     recently_played = spotify._get("me/player/recently-played", limit=50)["items"]
     songs_raw.extend([x["track"] for x in recently_played])
 
@@ -66,7 +65,7 @@ def update_playlist():
         return track["album"]["artists"][0]["name"]
 
     uris = list(set(track["uri"] for track in sorted(songs_raw, key=artist_key)))
-    song_info = list(set([track["album"]["artists"][0]["name"] + " - " + track["name"] for
+    song_info = list(set([track["name"] + " - " + track["album"]["artists"][0]["name"] for
                           track in sorted(songs_raw, key=artist_key)]))
 
     for i, chunk in enumerate(chunks(uris, 50)):
@@ -76,9 +75,9 @@ def update_playlist():
             spotify.user_playlist_add_tracks(user["id"], playlist["id"], chunk)
 
     print(f"Added {len(song_info)} to {playlist['name']} playlist:\n")
-    for song in song_info:
+    for song in sorted(song_info):
         print(song)
-    input("\nPress enter to exit")
+    input("\nPress enter to exit...")
 
 
 if __name__ == "__main__":

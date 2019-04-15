@@ -1,1 +1,6 @@
+iypnb_checkpoints
+env
+__pycache__
+*.ipynb
 *.json
+practice.py
