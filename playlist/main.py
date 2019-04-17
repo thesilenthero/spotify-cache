@@ -47,6 +47,11 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
+def trim_playlist(playlist, limit=100):
+    # remove songs on a first in, first out basis
+    return sorted(playlist, lambda s: s['added_at'])[:limit]
+
+
 def update():
 
     spotify = spotipy.Spotify(auth=get_token()["access_token"])
@@ -56,7 +61,7 @@ def update():
 
     songs_raw = []
 
-    # songs_raw.extend(spotify.current_user_top_tracks(limit=50, time_range="short_term")["items"])
+    songs_raw.extend(spotify.current_user_top_tracks(limit=50, time_range="short_term")["items"])
     recently_played = spotify._get("me/player/recently-played", limit=50)["items"]
     songs_raw.extend([x["track"] for x in recently_played])
 
@@ -70,6 +75,7 @@ def update():
     for i, chunk in enumerate(chunks(uris, 50)):
         if i == 0:
             spotify.user_playlist_replace_tracks(user["id"], playlist["id"], chunk)
+            # pass
         else:
             spotify.user_playlist_add_tracks(user["id"], playlist["id"], chunk)
 
@@ -80,30 +86,4 @@ def update():
 
 
 if __name__ == '__main__':
-
-    def get_recently_played_songs(limit=100):
-
-        spotify = spotipy.Spotify(auth=get_token()["access_token"])
-
-        after = int(round(datetime.now().timestamp(), 0))
-        song_info = []
-
-        while len(song_info) <= limit:
-            results = spotify._get("me/player/recently-played", after=after,
-                                   limit=50)["items"]
-
-            for result in results:
-                if len(song_info) >= limit:
-                    break
-                else:
-                    artist = result["track"]["album"]["artists"][0]["name"]
-                    name = result["track"]["name"]
-                    uri = result["track"]["uri"]
-                    timestamp = dateparser.parse(result['played_at']).timestamp()
-                    song_info.append((artist, name, uri, timestamp))
-                    print((artist, name, uri, timestamp))
-
-            earliest_song = int(round(sorted(song_info, key=lambda s: s[-1])[0][-1], 0))
-            after = int(round(earliest_song - 24 * 60 * 60, 0))
-
-        return song_info
+    pass
