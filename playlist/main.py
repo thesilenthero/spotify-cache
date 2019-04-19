@@ -1,44 +1,7 @@
-import webbrowser
-
-from datetime import datetime
-import dateparser
-import os
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from dateparser import parse as dtparse
 
-from pprint import pprint
-
-CLIENT_ID = os.environ["SPOTIFY_APP_ID"]
-APP_SECRET = os.environ["SPOTIFY_APP_SECRET"]
-REDIRECT_URI = os.environ["REDIRECT_URI"]
-
-
-def get_token():
-
-    cache_path = os.path.join(os.path.split(__file__)[0], "auth_token.json")
-    scopes = " ".join(["user-read-recently-played",
-                       "user-top-read",
-                       "user-library-modify",
-                       "user-library-read",
-                       "playlist-read-private",
-                       "playlist-modify-private", ])
-
-    oauth = SpotifyOAuth(CLIENT_ID, APP_SECRET, REDIRECT_URI,
-                         cache_path=cache_path, scope=scopes)
-
-    token = oauth.get_cached_token()
-
-    if not token:
-        authorization_url = oauth.get_authorize_url()
-
-        webbrowser.open(authorization_url)
-
-        authorization_response = input("Enter the full callback URL: ")
-        code = oauth.parse_response_code(authorization_response)
-        token = oauth.get_access_token(code)
-        print("Authorization was successful!")
-
-    return token
+from .authorization import get_token
 
 
 def chunks(l, n):
@@ -47,43 +10,66 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def trim_playlist(playlist, limit=100):
-    # remove songs on a first in, first out basis
-    return sorted(playlist, lambda s: s['added_at'])[:limit]
+class PlaylistUpdater(object):
 
+    def __init__(self, playlist_name):
+        self.api = spotipy.Spotify(auth=get_token()["access_token"])
+        self.playlist = [pl for pl in self.api.current_user_playlists()["items"]
+                         if pl["name"].lower() == playlist_name.lower()][0]
+        self.user = self.api.current_user()
 
-def update():
+    def get_playlist_tracks(self):
+        results = self.api.user_playlist_tracks(self.user['id'],
+                                                self.playlist['id'])
+        tracks = results["items"]
+        while results["next"]:
+            results = self.api.next(results)
+            tracks.extend(results["items"])
+        return tracks
 
-    spotify = spotipy.Spotify(auth=get_token()["access_token"])
-    playlist = [pl for pl in spotify.current_user_playlists()["items"]
-                if pl["name"].lower() == "offline songs"][0]
-    user = spotify.current_user()
+    def trim_playlist(self, limit=100):
+        # remove songs on a first in, first out basis
+        return sorted(self.playlist, lambda s: s["added_at"])[:limit]
 
-    songs_raw = []
+    def get_uris(self, raw_song_data):
+        uris = []
+        for track in raw_song_data:
+            try:
+                uris.append(track["track"]["uri"])
+            except KeyError:
+                uris.append(track["uri"])
 
-    songs_raw.extend(spotify.current_user_top_tracks(limit=50, time_range="short_term")["items"])
-    recently_played = spotify._get("me/player/recently-played", limit=50)["items"]
-    songs_raw.extend([x["track"] for x in recently_played])
+        return uris
 
-    def artist_key(track):
-        return track["album"]["artists"][0]["name"]
+    def get_artist(self, track):
+        try:
+            return track["album"]["artists"][0]["name"]
+        except KeyError:
+            return track["track"]["album"]["artists"][0]["name"]
 
-    uris = list(set(track["uri"] for track in sorted(songs_raw, key=artist_key)))
-    song_info = list(set([track["name"] + " - " + artist_key(track) for
-                          track in sorted(songs_raw, key=artist_key)]))
+    def update_playlist(self, limit=200):
 
-    for i, chunk in enumerate(chunks(uris, 50)):
-        if i == 0:
-            spotify.user_playlist_replace_tracks(user["id"], playlist["id"], chunk)
-            # pass
-        else:
-            spotify.user_playlist_add_tracks(user["id"], playlist["id"], chunk)
+        existing_uris = self.get_uris(self.get_playlist_tracks())
 
-    print(f"Added {len(song_info)} to {playlist['name']} playlist:\n")
-    for song in sorted(song_info):
-        print(song)
-    input("\nPress any key to exit...")
+        new_songs = []
+        new_songs.extend(self.api.current_user_top_tracks(limit=50, time_range="short_term")["items"])
+        new_songs.extend([x["track"] for x in self.api._get("me/player/recently-played", limit=50)["items"]])
 
+        new_uris = [uri for uri in set(self.get_uris(new_songs))
+                    if uri not in existing_uris]
 
-if __name__ == '__main__':
-    pass
+        for chunk in chunks(new_uris, 50):
+            self.api.user_playlist_add_tracks(self.user["id"], self.playlist["id"], chunk)
+
+        # trim playlist to limit
+        playlist_songs = self.get_playlist_tracks()
+        songs_to_remove = sorted(playlist_songs, key=lambda p: dtparse(p["added_at"]))[limit:]
+
+        if songs_to_remove:
+            for chunk in chunks(songs_to_remove, 50):
+                uris_to_remove = self.get_uris(songs_to_remove)
+                self.api.user_playlist_remove_all_occurrences_of_tracks(self.user["id"], self.playlist["id"], uris_to_remove)
+
+        print("Updated playlist:\n\n")
+        for song in self.get_playlist_tracks():
+            print(self.get_artist(song) + " - " + song["track"]["name"])

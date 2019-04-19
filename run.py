@@ -1,7 +1,6 @@
-from playlist import update
+from playlist.main import PlaylistUpdater
 
-if __name__ == '__main__':
-    try:
-        update()
-    except Exception as e:
-        input(e)
+
+if __name__ == "__main__":
+    pl = PlaylistUpdater("offline songs")
+    pl.update_playlist()
