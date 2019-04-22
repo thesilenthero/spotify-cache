@@ -12,24 +12,20 @@ def chunks(l, n):
 
 class PlaylistUpdater(object):
 
-    def __init__(self, playlist_name):
-        self.api = spotipy.Spotify(auth=get_token()["access_token"])
+    def __init__(self, playlist_name, token_path="cached_data/auth_token.json"):
+        self.api = spotipy.Spotify(auth=get_token(token_path)["access_token"])
         self.playlist = [pl for pl in self.api.current_user_playlists()["items"]
                          if pl["name"].lower() == playlist_name.lower()][0]
         self.user = self.api.current_user()
 
     def get_playlist_tracks(self):
-        results = self.api.user_playlist_tracks(self.user['id'],
-                                                self.playlist['id'])
+        results = self.api.user_playlist_tracks(self.user["id"],
+                                                self.playlist["id"])
         tracks = results["items"]
         while results["next"]:
             results = self.api.next(results)
             tracks.extend(results["items"])
         return tracks
-
-    def trim_playlist(self, limit=100):
-        # remove songs on a first in, first out basis
-        return sorted(self.playlist, lambda s: s["added_at"])[:limit]
 
     def get_uris(self, raw_song_data):
         uris = []
@@ -47,13 +43,17 @@ class PlaylistUpdater(object):
         except KeyError:
             return track["track"]["album"]["artists"][0]["name"]
 
+    def get_songs(self):
+        new_songs = []
+        new_songs.extend(self.api.current_user_top_tracks(limit=50, time_range="short_term")["items"])
+        new_songs.extend([x["track"] for x in self.api._get("me/player/recently-played", limit=50)["items"]])
+        return new_songs
+
     def update_playlist(self, limit=200):
 
         existing_uris = self.get_uris(self.get_playlist_tracks())
 
-        new_songs = []
-        new_songs.extend(self.api.current_user_top_tracks(limit=50, time_range="short_term")["items"])
-        new_songs.extend([x["track"] for x in self.api._get("me/player/recently-played", limit=50)["items"]])
+        new_songs = self.get_songs()
 
         new_uris = [uri for uri in set(self.get_uris(new_songs))
                     if uri not in existing_uris]

@@ -8,9 +8,9 @@ APP_SECRET = os.environ["SPOTIFY_APP_SECRET"]
 REDIRECT_URI = os.environ["REDIRECT_URI"]
 
 
-def get_token():
+def get_token(token_path="cached_data/auth_token.json"):
 
-    cache_path = os.path.join(os.path.split(__file__)[0], r"cached_data\auth_token.json")
+    cache_path = os.path.join(os.path.split(__file__)[0], token_path)
     scopes = " ".join(["user-read-recently-played",
                        "user-top-read",
                        "user-library-modify",
@@ -36,5 +36,5 @@ def get_token():
     return token
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     get_token()
