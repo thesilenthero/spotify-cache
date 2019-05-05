@@ -16,9 +16,14 @@ SCOPES = " ".join(["user-read-recently-played",
                    "playlist-modify-private", ])
 
 
-def authorize_application(cache_path, scopes):
+def authorize_application(token_path, scopes):
+
+    cached_data_path = os.path.join(os.path.split(__file__)[0], 'cached_data')
+    if not os.path.isdir(cached_data_path):
+        os.mkdir(cached_data_path)
+
     oauth = SpotifyOAuth(CLIENT_ID, APP_SECRET, REDIRECT_URI,
-                         cache_path=cache_path, scope=scopes)
+                         cache_path=token_path, scope=scopes)
     authorization_url = oauth.get_authorize_url()
 
     webbrowser.open(authorization_url)

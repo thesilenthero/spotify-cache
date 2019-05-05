@@ -1,11 +1,12 @@
-from playlist.main import PlaylistUpdater
+from playlist import PlaylistUpdater
 
 
 if __name__ == "__main__":
-    try:
-        pl = PlaylistUpdater("offline songs")
-        pl.update_playlist()
-        input("\nPress any key to exit...")
-    except Exception as e:
-        input(e)
+    pl = PlaylistUpdater("offline songs")
+    updated_playlist = pl.update_playlist(250)
 
+    print(f"Updated playlist - {len(updated_playlist)} songs:\n\n")
+    for song in sorted(updated_playlist, key=lambda s: pl.get_artist(s)):
+        print(pl.get_artist(song) + " - " + song["track"]["name"])
+
+    input("\nPress any key to exit...")

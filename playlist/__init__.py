@@ -1,3 +1,1 @@
-
-from .authorization import authorize_application
-from .main import PlaylistUpdater
+from .update import PlaylistUpdater
