@@ -25,8 +25,22 @@ class PlaylistUpdaterTests(unittest.TestCase):
         result = self.plu.get_recent_tracks(limit)
         self.assertEqual(len(result), limit)
 
-    def test_get_uris(self):
-        sample_data =
+    def test_get_uri(self):
+        test_data = [
+            {'track': {'uri': 'uri1'}},
+            {'uri': 'uri2'},
+        ]
+        correct = ['uri1', 'uri2']
+
+        self.assertEqual(correct, self.plu.get_uris(test_data))
+
+    def test_get_uri_bad_data(self):
+        test_data = [
+            {'track': {'not_uri_key': 'uri1'}},
+        ]
+
+        with self.assertRaises(KeyError):
+            self.plu.get_uris(test_data)
 
 
 if __name__ == '__main__':
