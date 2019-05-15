@@ -48,7 +48,18 @@ class PlaylistUpdater(object):
             tracks.extend(results["items"])
         return tracks
 
+    def _walk(self, key, data):
+        try:
+            return data[key]
+        except KeyError:
+            for value in data.values():
+                if isinstance(value, dict):
+                    return self._walk(key, value)
+
+        raise KeyError
+
     def get_uris(self, raw_song_data):
+        # uris = [self._walk("uri", track) for track in raw_song_data]
         uris = []
         for track in raw_song_data:
             try:
@@ -100,6 +111,10 @@ class PlaylistUpdater(object):
 
         return new_songs
 
+    def _duplicate_track(self):
+        pass
+        # return deduplicated_tracks
+
     def update_playlist(self, limit=200):
 
         song_uris = self.get_uris(self.get_songs())
@@ -121,7 +136,7 @@ class PlaylistUpdater(object):
             uris_to_remove = self.get_uris(songs_to_remove)
 
             for chunk in chunks(songs_to_remove, 50):
-                uris_to_remove = self.get_uris(songs_to_remove)
+                uris_to_remove = self.get_uris(chunk)
                 self.api.user_playlist_remove_all_occurrences_of_tracks(self.user["id"], self.playlist["id"], uris_to_remove)
 
         return self.get_playlist_tracks()

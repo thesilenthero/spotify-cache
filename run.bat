@@ -1,1 +1,1 @@
-env\scripts\activate & run.py
+env\scripts\activate & run.py & deactivate
