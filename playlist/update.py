@@ -59,13 +59,14 @@ class PlaylistUpdater(object):
         raise KeyError
 
     def get_uris(self, raw_song_data):
-        # uris = [self._walk("uri", track) for track in raw_song_data]
-        uris = []
-        for track in raw_song_data:
-            try:
-                uris.append(track["track"]["uri"])
-            except KeyError:
-                uris.append(track["uri"])
+        uris = [self._walk("uri", track) for track in raw_song_data]
+        print(uris)
+        # uris = []
+        # for track in raw_song_data:
+        #     try:
+        #         uris.append(track["track"]["uri"])
+        #     except KeyError:
+        #         uris.append(track["uri"])
 
         return uris
 
@@ -89,8 +90,8 @@ class PlaylistUpdater(object):
 
         return tracks
 
-    def get_recent_tracks(self, limit=20):
-        """Default = 20, max = 50"""
+    def get_recent_tracks(self, limit=50):
+        """Default = 50, max = 50"""
         results = self.api._get("me/player/recently-played", limit=limit)
 
         tracks = results["items"]
@@ -107,20 +108,26 @@ class PlaylistUpdater(object):
     def get_songs(self):
         new_songs = []
         new_songs.extend(self.get_recent_tracks())
-        new_songs.extend(self.get_top_tracks())
+        # new_songs.extend(self.get_top_tracks())
 
         return new_songs
 
-    def _duplicate_track(self):
+    def _deduplicate_track(self):
         pass
         # return deduplicated_tracks
+
+    def get_playlist_uris(self):
+        playlist_tracks = self.get_playlist_tracks()
+        result = [self._walk("uri", self._walk("track", track))
+                  for track in playlist_tracks]
+        return result
 
     def update_playlist(self, limit=200):
 
         song_uris = self.get_uris(self.get_songs())
 
         # de-duplicate
-        existing_playlist_uris = self.get_uris(self.get_playlist_tracks())
+        existing_playlist_uris = self.get_playlist_uris()
 
         new_song_uris = list(set([uri for uri in song_uris
                                   if uri not in existing_playlist_uris]))
@@ -135,8 +142,7 @@ class PlaylistUpdater(object):
         if songs_to_remove:
             uris_to_remove = self.get_uris(songs_to_remove)
 
-            for chunk in chunks(songs_to_remove, 50):
-                uris_to_remove = self.get_uris(chunk)
-                self.api.user_playlist_remove_all_occurrences_of_tracks(self.user["id"], self.playlist["id"], uris_to_remove)
+            for chunk in chunks(uris_to_remove, 50):
+                self.api.user_playlist_remove_all_occurrences_of_tracks(self.user["id"], self.playlist["id"], chunk)
 
         return self.get_playlist_tracks()
